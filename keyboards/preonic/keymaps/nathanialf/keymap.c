@@ -35,6 +35,15 @@ enum preonic_keycodes {
   BACKLIT
 };
 
+// Sets of Colors to cycle through when the BACKLIT key is pressed
+int light_index = 0;
+int light_hues[4][9] = {
+  {127, 127, 127, 127, 127, 127, 127, 127, 127}, // CYAN
+  {127, 245, 127, 245, 127, 245, 127, 245, 127}, // CYAN and MAGENTA
+  {245, 245, 245, 245, 245, 245, 245, 245, 245}, // MAGENTA
+  {245, 127, 104, 245, 127, 104, 245, 127, 104}  // CYAN, MAGENTA and GREEN
+};
+
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
 /* Qwerty
@@ -47,7 +56,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  * |------+------+------+------+------+------|------+------+------+------+------+------|
  * | Shift|   Z  |   X  |   C  |   V  |   B  |   N  |   M  |   ,  |   .  |   /  |Enter |
  * |------+------+------+------+------+------+------+------+------+------+------+------|
- * | Ctrl |RShift| GUI  |  Alt |Lower |    Space    |Raise | Left | Down |  Up  |Right |
+ * | Ctrl |Bcklit| GUI  |  Alt |Lower |    Space    |Raise | Left | Down |  Up  |Right |
  * `-----------------------------------------------------------------------------------'
  * TODO: Find a better thing to replace RShift with
  */
@@ -56,7 +65,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   KC_TAB,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,    KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    KC_DEL,
   KC_ESC,  KC_A,    KC_S,    KC_D,    KC_F,    KC_G,    KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN, KC_QUOT,
   KC_LSFT, KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    KC_N,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH, KC_ENT,
-  KC_LCTL, KC_RSFT, KC_LGUI, KC_LALT, LOWER,   KC_SPC,  KC_SPC,  RAISE,   KC_LEFT, KC_DOWN, KC_UP,   KC_RGHT
+  KC_LCTL, BACKLIT, KC_LGUI, KC_LALT, LOWER,   KC_SPC,  KC_SPC,  RAISE,   KC_LEFT, KC_DOWN, KC_UP,   KC_RGHT
 ),
 
 /* Colemak
@@ -209,12 +218,20 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
           break;
         case BACKLIT:
           if (record->event.pressed) {
-            register_code(KC_RSFT);
+            //register_code(KC_RSFT);
             #ifdef BACKLIGHT_ENABLE
               backlight_step();
             #endif
             #ifdef RGBLIGHT_ENABLE
-              rgblight_step();
+            // Cycles through color sets stored in light_hues
+              light_index++;
+              if (light_index >= 4){
+                light_index = 0;
+              }
+              rgblight_enable_noeeprom();
+              for (int i = 0; i < 9; i++){
+                rgblight_sethsv_at(light_hues[light_index][i], 255, 255, i);
+              }
             #endif
             #ifdef __AVR__
             writePinLow(E6);
@@ -319,6 +336,6 @@ bool music_mask_user(uint16_t keycode) {
 void keyboard_post_init_user(void) {
   rgblight_enable_noeeprom(); // Enables RGB, without saving settings
   rgblight_sethsv_noeeprom(HSV_CYAN); // Sets underglow to a static cyan
-  rgblight_mode_noeeprom(RGBLIGHT_MODE_STATIC_LIGHT);
+  //rgblight_mode_noeeprom(RGBLIGHT_MODE_STATIC_GRADIENT);
 }
 #endif
