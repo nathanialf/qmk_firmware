@@ -35,13 +35,30 @@ enum preonic_keycodes {
   BACKLIT
 };
 
+static uint16_t idle_timer;
+static uint8_t light_counter;
+int minutes_to_disable = 10;
+
 // Sets of Colors to cycle through when the BACKLIT key is pressed
+/* Array Positions of LEDs on Preonic
+ * ,-----------------------------------------------------------------------------------.
+ * |   6  |      |      |   5  |      |      |      |      |  4   |      |      |  3   |
+ * |------+------+------+------+------+------+------+------+------+------+------+------|
+ * |      |      |      |      |      |      |      |      |      |      |      |      |
+ * |------+------+------+------+------+-------------+------+------+------+------+------|
+ * |      |      |      |      |      |      |  0   |      |      |      |      |      |
+ * |------+------+------+------+------+------|------+------+------+------+------+------|
+ * |      |      |      |      |      |      |      |      |      |      |      |      |
+ * |------+------+------+------+------+------+------+------+------+------+------+------|
+ * |   7  |      |      |   8  |      |             |      |  1   |      |      |  2   |
+ * `-----------------------------------------------------------------------------------'
+ */
 int light_index = 0;
 int light_hues[4][9] = {
   {127, 127, 127, 127, 127, 127, 127, 127, 127}, // CYAN
   {127, 245, 127, 245, 127, 245, 127, 245, 127}, // CYAN and MAGENTA
   {245, 245, 245, 245, 245, 245, 245, 245, 245}, // MAGENTA
-  {245, 127, 104, 245, 127, 104, 245, 127, 104}  // CYAN, MAGENTA and GREEN
+  {245, 127, 104, 245, 127, 104, 245, 127, 245}  // CYAN, MAGENTA and GREEN
 };
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
@@ -177,6 +194,13 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 };
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+  if (record->event.pressed) {
+    rgblight_enable();
+    for (int i = 0; i < 9; i++){
+      rgblight_sethsv_at(light_hues[light_index][i], 255, 255, i);
+    }
+  }
+  idle_timer = timer_read();
   switch (keycode) {
         case QWERTY:
           if (record->event.pressed) {
@@ -223,12 +247,11 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
               backlight_step();
             #endif
             #ifdef RGBLIGHT_ENABLE
-            // Cycles through color sets stored in light_hues
+              // Cycles through color sets stored in light_hues
               light_index++;
               if (light_index >= 4){
                 light_index = 0;
               }
-              rgblight_enable_noeeprom();
               for (int i = 0; i < 9; i++){
                 rgblight_sethsv_at(light_hues[light_index][i], 255, 255, i);
               }
@@ -320,6 +343,15 @@ void matrix_scan_user(void) {
         }
     }
 #endif
+  if (timer_elapsed(idle_timer) > 60000) {
+    light_counter++;
+    idle_timer = timer_read();
+  }
+  if (light_counter >= minutes_to_disable) {
+    rgblight_disable();
+    light_counter = 0;
+  }
+
 }
 
 bool music_mask_user(uint16_t keycode) {
@@ -334,8 +366,8 @@ bool music_mask_user(uint16_t keycode) {
 
 #ifdef RGBLIGHT_ENABLE
 void keyboard_post_init_user(void) {
-  rgblight_enable_noeeprom(); // Enables RGB, without saving settings
-  rgblight_sethsv_noeeprom(HSV_CYAN); // Sets underglow to a static cyan
+  rgblight_enable(); // Enables RGB, without saving settings
+  rgblight_sethsv(HSV_CYAN); // Sets underglow to a static cyan
   //rgblight_mode_noeeprom(RGBLIGHT_MODE_STATIC_GRADIENT);
 }
 #endif
