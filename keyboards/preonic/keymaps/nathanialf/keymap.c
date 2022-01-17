@@ -37,7 +37,8 @@ enum preonic_keycodes {
 
 static uint16_t idle_timer;
 static uint8_t light_counter;
-int minutes_to_disable = 10;
+static uint8_t minutes_to_disable = 15;
+static bool disabled = false;
 
 // Sets of Colors to cycle through when the BACKLIT key is pressed
 /* Array Positions of LEDs on Preonic
@@ -53,8 +54,9 @@ int minutes_to_disable = 10;
  * |   7  |      |      |   8  |      |             |      |  1   |      |      |  2   |
  * `-----------------------------------------------------------------------------------'
  */
-int light_index = 0;
-int light_hues[4][9] = {
+static uint8_t light_index = 0;
+static uint8_t light_hues[5][9] = {
+  {127, 142, 157, 172, 187, 202, 217, 232, 247}, // CYAN Cycle up
   {127, 127, 127, 127, 127, 127, 127, 127, 127}, // CYAN
   {127, 245, 127, 245, 127, 245, 127, 245, 127}, // CYAN and MAGENTA
   {245, 245, 245, 245, 245, 245, 245, 245, 245}, // MAGENTA
@@ -162,10 +164,10 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  * `-----------------------------------------------------------------------------------'
  */
 [_RAISE] = LAYOUT_preonic_grid(
-  KC_GRV,  KC_F1,    KC_F2,    KC_F3,    KC_F4,    KC_F5,    KC_F6,    KC_F7,    KC_F8,    KC_F9,    KC_F10,    KC_BSPC,
-  KC_GRV,  KC_F1,    KC_F2,    KC_F3,    KC_F4,    KC_F5,    KC_F6,    KC_F7,    KC_F8,    KC_F9,    KC_F10,    KC_DEL,
-  KC_DEL,  KC_1,   KC_2,   KC_3,   KC_4,   KC_5,   KC_6,   KC_MINS, KC_EQL,  KC_LBRC, KC_RBRC, KC_BSLS,
-  _______, KC_7,   KC_8,   KC_9,   KC_0,  KC_F11,  KC_F12,  KC_NUHS, KC_NUBS, KC_PGUP, KC_PGDN, _______,
+  KC_GRV,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_BSPC,
+  KC_GRV,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_DEL,
+  KC_DEL,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,    KC_6,    KC_MINS, KC_EQL,  KC_LBRC, KC_RBRC, KC_BSLS,
+  _______, KC_7,    KC_8,    KC_9,    KC_0,    KC_F11,  KC_F12,  KC_NUHS, KC_NUBS, KC_PGUP, KC_PGDN, _______,
   _______, _______, _______, _______, _______, _______, _______, _______, KC_MNXT, KC_VOLD, KC_VOLU, KC_MPLY
 ),
 
@@ -195,10 +197,16 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
   if (record->event.pressed) {
-    rgblight_enable();
-    for (int i = 0; i < 9; i++){
-      rgblight_sethsv_at(light_hues[light_index][i], 255, 255, i);
-    }
+    #ifdef RGBLIGHT_ENABLE
+      if (disabled){
+        disabled = false;
+        rgblight_enable();
+        for (int i = 0; i < 9; i++){
+          rgblight_sethsv_at(light_hues[light_index][i], 255, 255, i);
+        } 
+        light_counter = 0;
+      }
+    #endif
   }
   idle_timer = timer_read();
   switch (keycode) {
@@ -242,14 +250,13 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
           break;
         case BACKLIT:
           if (record->event.pressed) {
-            //register_code(KC_RSFT);
             #ifdef BACKLIGHT_ENABLE
               backlight_step();
             #endif
             #ifdef RGBLIGHT_ENABLE
               // Cycles through color sets stored in light_hues
               light_index++;
-              if (light_index >= 4){
+              if (light_index >= 5){
                 light_index = 0;
               }
               for (int i = 0; i < 9; i++){
@@ -343,15 +350,17 @@ void matrix_scan_user(void) {
         }
     }
 #endif
-  if (timer_elapsed(idle_timer) > 60000) {
+
+  if (timer_elapsed(idle_timer) > 60000 && light_counter < minutes_to_disable) {
     light_counter++;
     idle_timer = timer_read();
   }
   if (light_counter >= minutes_to_disable) {
-    rgblight_disable();
-    light_counter = 0;
+    #ifdef RGBLIGHT_ENABLE
+      rgblight_disable();
+      disabled = true;
+    #endif
   }
-
 }
 
 bool music_mask_user(uint16_t keycode) {
@@ -366,8 +375,9 @@ bool music_mask_user(uint16_t keycode) {
 
 #ifdef RGBLIGHT_ENABLE
 void keyboard_post_init_user(void) {
-  rgblight_enable(); // Enables RGB, without saving settings
-  rgblight_sethsv(HSV_CYAN); // Sets underglow to a static cyan
-  //rgblight_mode_noeeprom(RGBLIGHT_MODE_STATIC_GRADIENT);
+  rgblight_enable();
+  for (int i = 0; i < 9; i++){
+    rgblight_sethsv_at(light_hues[light_index][i], 255, 255, i);
+  }
 }
 #endif
