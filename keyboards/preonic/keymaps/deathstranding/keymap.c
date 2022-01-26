@@ -38,7 +38,6 @@ enum preonic_keycodes {
 static uint16_t idle_timer;
 static uint8_t light_counter;
 static uint8_t minutes_to_disable = 15;
-static bool disabled = false;
 
 // Sets of Colors to cycle through when the BACKLIT key is pressed
 /* Array Positions of LEDs on Preonic
@@ -55,12 +54,8 @@ static bool disabled = false;
  * `-----------------------------------------------------------------------------------'
  */
 static uint8_t light_index = 0;
-static uint8_t light_hues[5][9] = {
-  {127, 142, 157, 172, 187, 202, 217, 232, 247}, // CYAN Cycle up
-  {127, 127, 127, 127, 127, 127, 127, 127, 127}, // CYAN
-  {127, 245, 127, 245, 127, 245, 127, 245, 127}, // CYAN and MAGENTA
-  {245, 245, 245, 245, 245, 245, 245, 245, 245}, // MAGENTA
-  {245, 127, 104, 245, 127, 104, 245, 127, 245}  // CYAN, MAGENTA and GREEN
+static uint8_t light_hues[1][9] = {
+  {10, 10, 10, 10, 10, 10, 10, 10, 10}, // Orange
 };
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
@@ -198,14 +193,11 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
   if (record->event.pressed) {
     #ifdef RGBLIGHT_ENABLE
-      if (disabled){
-        disabled = false;
-        rgblight_enable();
-        for (int i = 0; i < 9; i++){
-          rgblight_sethsv_at(light_hues[light_index][i], 255, 255, i);
-        } 
-        light_counter = 0;
-      }
+      rgblight_enable();
+      for (int i = 0; i < 9; i++){
+        rgblight_sethsv_at(light_hues[light_index][i], 255, 255, i);
+      } 
+      light_counter = 0;
     #endif
   }
   idle_timer = timer_read();
@@ -256,7 +248,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             #ifdef RGBLIGHT_ENABLE
               // Cycles through color sets stored in light_hues
               light_index++;
-              if (light_index >= 5){
+              if (light_index >= 1){
                 light_index = 0;
               }
               for (int i = 0; i < 9; i++){
@@ -358,7 +350,6 @@ void matrix_scan_user(void) {
   if (light_counter >= minutes_to_disable) {
     #ifdef RGBLIGHT_ENABLE
       rgblight_disable();
-      disabled = true;
     #endif
   }
 }
